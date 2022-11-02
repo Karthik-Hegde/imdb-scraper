@@ -1,10 +1,9 @@
 import axios from "axios";
-import { CheerioAPI, load } from "cheerio";
+import { load } from "cheerio";
 import { pipe } from "fp-ts/lib/function";
-import { get } from "spectacles-ts";
 
 const BASE_URL = "https://www.imdb.com";
-let url1 = "/search/title/?groups=top_250&sort=user_rating";
+let url = "/search/title/?groups=top_250&sort=user_rating";
 
 type Movie = {
   title: string;
@@ -19,12 +18,11 @@ type Movie = {
 };
 
 async function scrapeData() {
-  const { data } = await axios.get(`${BASE_URL}${url1}`);
+  const { data } = await axios.get(`${BASE_URL}${url}`);
   const $ = load(data);
-  // console.log($("#main .article .desc").children("a").attr("href"));
-  const ratingList = $(".lister-list .lister-item.mode-advanced");
+  const movieList = $(".lister-list .lister-item.mode-advanced");
   const movies: Movie[] = [];
-  ratingList.each((_idx, el) => {
+  movieList.each((_idx, el) => {
     const movie: Movie = {
       title: "",
       rank: "",
@@ -78,10 +76,6 @@ async function scrapeData() {
       .children("a")
       .eq(0)
       .text();
-    //   const dob = await getDirectorDetails(
-    //     movieContentEl.children("p").eq(2).children("a").eq(0).attr("href")
-    //   );
-    //   console.log(dob);
     const stars = movieContentEl.children("p").eq(2).children("a");
     movie.stars = stars
       .map((idx: number) => {
@@ -92,10 +86,12 @@ async function scrapeData() {
       .toArray();
     movies.push(movie);
   });
-  // console.dir(movies);
   return movies;
 }
 
-scrapeData().then((res) => {
-  console.log(pipe(res, get("[]>.rank")));
-});
+const displayMovies = async () => {
+  const top50 = await scrapeData();
+  pipe(top50, console.dir);
+};
+
+displayMovies();
