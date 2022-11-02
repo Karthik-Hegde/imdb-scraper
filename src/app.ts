@@ -1,16 +1,18 @@
 import axios from "axios";
 import { load } from "cheerio";
 import { pipe } from "fp-ts/lib/function";
+import * as O from "fp-ts/lib/Option";
+import { get, modify, modifyW, set } from "spectacles-ts";
 
 const BASE_URL = "https://www.imdb.com";
 let url = "/search/title/?groups=top_250&sort=user_rating";
 
 type Movie = {
   title: string;
-  rank: string;
+  rank: string | number;
   runtime: string;
   genre: string;
-  ratings: string;
+  ratings: string | number;
   metascore: string;
   plot: string;
   director: string;
@@ -89,9 +91,54 @@ async function scrapeData() {
   return movies;
 }
 
-const displayMovies = async () => {
-  const top50 = await scrapeData();
-  pipe(top50, console.dir);
+const log = (s: string) => (data: unknown) => {
+  console.log(`\n\n${s}: `);
+  console.log(data);
+  return data;
 };
 
-displayMovies();
+// Function to display only directors name from scraped data
+const displayDirectors = async () => {
+  const top50 = await scrapeData();
+  pipe(top50, get("[]>.director"), log("Directors"));
+};
+
+displayDirectors();
+
+// Function to set runtime of 3rd item from 152 mins to 153 mins
+const setRuntime = async () => {
+  const top50 = await scrapeData();
+  pipe(
+    top50.slice(0, 10),
+    set("[number].runtime", 2, "153 min"),
+    log("Modifided runtime")
+  );
+};
+
+setRuntime();
+
+// Function to convert first ratings value from string to number from scraped data using modify function
+const convertRatingToNumber = async () => {
+  const top50 = await scrapeData();
+  pipe(
+    top50,
+    modify("[number].ratings", 0, (rating) => parseFloat(rating.toString())),
+    get("[number].ratings", 0),
+    O.toNullable,
+    log("Rating of first movie")
+  );
+};
+
+convertRatingToNumber();
+
+const convertAllRankToNumber = async () => {
+  const top50 = await scrapeData();
+  pipe(
+    top50,
+    modifyW("[]>.rank", (rank) => parseFloat(rank.toString())),
+    get("[]>.rank"),
+    log("Ranks converted to number")
+  );
+};
+
+convertAllRankToNumber();
